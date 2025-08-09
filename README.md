@@ -6,7 +6,7 @@ A ready-to-import n8n workflow for WhatsApp-based Google Drive file management a
 
 - WhatsApp command interface (via Twilio Sandbox)
 - Google Drive integration (OAuth2, user-scoped)
-- AI summaries (OpenAI GPT-4o, Claude, or Groq)
+- AI summaries (llama-3.1-8b-instant)
 - Audit logging and safety checks (confirmation for deletes)
 - Dockerized deployment
 
@@ -108,3 +108,4 @@ MIT
 
 ## Demo video:
 https://www.youtube.com/watch?v=XY8j_kh2nUM
+
