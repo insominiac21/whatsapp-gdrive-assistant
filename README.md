@@ -31,6 +31,35 @@ A ready-to-import n8n workflow for WhatsApp-based Google Drive file management a
 - `SUMMARY /folder` — AI summary of documents
 - `HELP` — Show help message
 
+## How it Works
+
+This solution uses [n8n](https://n8n.io/) to automate WhatsApp-based file management and AI summaries for Google Drive. Here’s an overview of the workflow:
+
+1. **Inbound WhatsApp Message:**  
+   - Twilio forwards incoming WhatsApp messages to your n8n webhook (proxied via Railway/ngrok).
+2. **Message Validation & Parsing:**  
+   - The workflow checks if the message is valid and parses the command (e.g., LIST, DELETE, MOVE, SUMMARY, HELP).
+   - If the command is invalid or incomplete, a helpful fallback or error message is sent.
+3. **Command Routing:**  
+   - Depending on the command, the workflow routes the request:
+     - **LIST:** Lists files in the specified Google Drive folder.
+     - **DELETE:** Deletes a file (only after receiving a `CONFIRM` keyword for safety).
+     - **MOVE:** Moves or renames a file.
+     - **SUMMARY:** Fetches file info and sends it to an AI (Groq/OpenAI/Claude) for a concise summary.
+     - **HELP:** Sends a help message with usage instructions.
+4. **Google Drive Integration:**  
+   - All file operations use OAuth2 and only access the authenticated user’s Google Drive.
+5. **AI Summarization:**  
+   - For the SUMMARY command, file details are sent to an AI model to generate a WhatsApp-friendly summary.
+6. **Response Formatting:**  
+   - All responses are formatted with emojis and concise text for WhatsApp.
+7. **Audit Logging:**  
+   - Every operation is logged for traceability and safety.
+8. **WhatsApp Response:**  
+   - The formatted response is sent back to the user via Twilio WhatsApp.
+
+This workflow is modular, secure, and extensible. All secrets and configuration are managed via environment variables.
+
 ## Security
 
 - Only your Google Drive files are accessible.
@@ -76,3 +105,6 @@ To receive WhatsApp messages from Twilio, your n8n instance must be accessible f
 ## License
 
 MIT
+
+## Demo video:
+https://www.youtube.com/watch?v=XY8j_kh2nUM
