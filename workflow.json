@@ -1,0 +1,674 @@
+{
+  "name": "WhatsApp Google Drive Assistant - Groq Version",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.error}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "fd8827fc-8519-46ff-809b-939609964d31",
+      "name": "Check for Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -4160,
+        -1056
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "filter": {},
+        "options": {
+          "fields": [
+            "id",
+            "name",
+            "mimeType",
+            "size",
+            "modifiedTime",
+            "parents"
+          ]
+        }
+      },
+      "id": "509c1c06-3ca0-4586-abae-13b69a5adf6e",
+      "name": "Google Drive List",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3264,
+        -1072
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "={{ $env.GDRIVE_CREDENTIAL_ID }}",
+          "name": "Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.path.split('/').pop() }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "b4d3813e-4b66-426b-8069-ba05b02e1d68",
+      "name": "Google Drive Delete",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3264,
+        -880
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "={{ $env.GDRIVE_CREDENTIAL_ID }}",
+          "name": "Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "={{$json.path}}"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "root",
+          "cachedResultName": "/ (Root folder)"
+        }
+      },
+      "id": "966edffb-f4a0-4411-bd5d-ce69d58e5434",
+      "name": "Google Drive Move",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3264,
+        -688
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "={{ $env.GDRIVE_CREDENTIAL_ID }}",
+          "name": "Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "filter": {},
+        "options": {}
+      },
+      "id": "0247f7b9-7e0f-472e-ba7a-61c78ca06fb1",
+      "name": "Google Drive Summary List",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3536,
+        -688
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "={{ $env.GDRIVE_CREDENTIAL_ID }}",
+          "name": "Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer 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"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a helpful assistant that provides concise summaries of file collections for WhatsApp messaging. Keep responses under 500 characters when possible, use emojis appropriately, and be informative yet brief.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{$json.summaryPrompt}}\"\n    }\n  ],\n  \"max_tokens\": 300,\n  \"temperature\": 0.7\n}",
+        "options": {}
+      },
+      "id": "6b4bbd18-25cf-4cc2-bd4c-2e43240d29e0",
+      "name": "Groq AI Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -3264,
+        -496
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "={{ $env.GROQ_CREDENTIAL_ID }}",
+          "name": "Groq"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate help message - completely standalone\nconst helpMessage = `🤖 *WhatsApp Google Drive Assistant*\\n\\n📋 *Available Commands:*\\n\\n📁 *LIST /folder*\\n   List files in a folder\\n   Example: LIST /ProjectX\\n\\n🗑️ *DELETE /file.ext CONFIRM*\\n   Delete a file (requires CONFIRM)\\n   Example: DELETE /temp/old.pdf CONFIRM\\n\\n📦 *MOVE /source /destination*\\n   Move or rename files\\n   Example: MOVE /draft.pdf /Archive\\n\\n🤖 *SUMMARY /folder*\\n   AI summary of documents\\n   Example: SUMMARY /Reports\\n\\n❓ *HELP*\\n   Show this message\\n\\n⚡ *Tips:*\\n• Use forward slashes for paths\\n• Commands are case-insensitive\\n• DELETE requires CONFIRM for safety\\n\\n🔒 *Security:* Only your files are accessible`;\n\nreturn {\n  command: 'HELP',\n  response: helpMessage,\n  responseType: 'help',\n  from: $json.from || '',\n  messageId: $json.messageId || `help-${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  operationId: `help-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`\n};"
+      },
+      "id": "4f647ea9-e4d3-4996-9ebf-a9c261f6d962",
+      "name": "Generate Help",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3264,
+        -192
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Error response formatter\nconst errorData = $json;\nconst timestamp = new Date().toLocaleString();\n\nlet response = '';\n\nswitch(errorData.errorType) {\n  case 'EMPTY_MESSAGE':\n    response = '❌ *Empty Message*\\n\\nPlease send a command. Type HELP for available commands.';\n    break;\n  case 'INVALID_COMMAND':\n    response = errorData.message;\n    break;\n  case 'MISSING_PATH':\n    response = errorData.message;\n    break;\n  case 'MISSING_DESTINATION':\n    response = errorData.message;\n    break;\n  case 'MISSING_CONFIRMATION':\n    response = errorData.message;\n    break;\n  default:\n    response = errorData.message || '❌ An error occurred. Please try again or type HELP.';\n}\n\nreturn {\n  response,\n  to: errorData.from,\n  messageId: errorData.messageId,\n  command: 'ERROR',\n  responseType: 'error',\n  timestamp,\n  errorType: errorData.errorType,\n  cleanPhone: (errorData.from || '').replace('whatsapp:', '')\n};"
+      },
+      "id": "eecf0ec6-c999-490a-80ca-323479986109",
+      "name": "Format Error Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        -1232
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Audit logging for all operations\nconst data = $json;\nconst timestamp = new Date().toISOString();\n\nconst auditEntry = {\n  timestamp,\n  operationId: data.operationId || 'unknown',\n  command: data.command || 'UNKNOWN',\n  from: data.cleanPhone || data.from,\n  messageId: data.messageId,\n  success: !data.errorType,\n  responseType: data.responseType || 'unknown',\n  path: data.path,\n  destination: data.destination,\n  errorType: data.errorType || null\n};\n\nconsole.log('AUDIT LOG:', JSON.stringify(auditEntry, null, 2));\n\nreturn auditEntry;"
+      },
+      "id": "0fff5e6c-6f62-4088-bbcb-cece6c04f15d",
+      "name": "Audit Log",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -2592,
+        -688
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const webhookData = $input.all()[0].json;\nconst fromNumber = webhookData.From || webhookData.from || webhookData.WaId || \"Unknown\";\n\n// Get the original message/body for feedback\nconst originalBody = webhookData.Body || webhookData.body?.Body || webhookData.body2?.Body || \"(empty)\";\n\n// Create improved fallback response\nconst fallbackMessage = \n  `⚠️ Invalid command from: ${fromNumber}\\n\\n` +\n  `You sent: \"${originalBody}\"\\n\\n` +\n  `Please use one of these commands:\\n\\n` +\n  `📋 LIST - View your Google Drive files\\n` +\n  `🗑️ DELETE [filename] - Delete a file\\n` +\n  `📁 MOVE [filename] to [folder] - Move file to folder\\n` +\n  `📊 SUMMARY [folder] - Get AI summary of folder\\n` +\n  `❓ HELP - Show this help message\\n\\n` +\n  `Example: 'LIST' or 'DELETE myfile.pdf'`;\n\nreturn [{\n  json: {\n    to: fromNumber,\n    response: fallbackMessage\n  }\n}];"
+      },
+      "id": "7b3919f6-7d07-4daa-a43a-69b278042e31",
+      "name": "Fallback Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ad06cdcb-026a-48aa-9a7c-c251ac996729",
+      "name": "WhatsApp Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -4832,
+        -880
+      ],
+      "webhookId": "whatsapp-webhook-production"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.Body || $json.body?.Body || $json.body2?.Body || '' }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "147a9be5-dda1-4d03-958a-346d12378a85",
+      "name": "Filter Valid Messages1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -4608,
+        -880
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Enhanced command parser with flexible data handling\n// Handle both direct webhook data and nested body structure\nconst rawBody = $json.Body || $json.body?.Body || '';\nconst body = rawBody.toString().trim().toUpperCase();\nconst from = $json.From || $json.body?.From || '';\nconst messageId = $json.MessageSid || $json.body?.MessageSid || `msg-${Date.now()}`;\nconst timestamp = new Date().toISOString();\n\n// Enhanced logging\nconsole.log(`[${timestamp}] Processing message:`, {\n  body,\n  from,\n  messageId,\n  rawData: $json,\n  rawBody\n});\n\n// Validate required fields\nif (!body) {\n  return [{\n    error: true,\n    errorType: 'EMPTY_MESSAGE',\n    message: '❌ Empty message received. Please send a valid command like: HELP',\n    from,\n    messageId,\n    timestamp\n  }];\n}\n\nif (!from) {\n  return [{\n    error: true,\n    errorType: 'MISSING_SENDER',\n    message: '❌ Unable to identify sender. Please try again.',\n    messageId,\n    timestamp\n  }];\n}\n\n// Extract command parts\nconst parts = body.split(' ').filter(part => part.trim().length > 0);\nconst command = parts[0] || '';\nconst path = parts[1] || '';\nconst destination = parts[2] || '';\nconst confirmKeyword = parts.find(part => part === 'CONFIRM') || '';\n\n// Enhanced command validation\nconst validCommands = ['LIST', 'DELETE', 'MOVE', 'SUMMARY', 'HELP'];\nif (!validCommands.includes(command)) {\n  return [{\n    error: true,\n    errorType: 'INVALID_COMMAND',\n    message: `❌ Invalid command: \"${command}\"\\n\\n📋 Available commands:\\n• LIST /folder\\n• DELETE /file.ext\\n• MOVE /source /dest\\n• SUMMARY /folder\\n• HELP`,\n    from,\n    messageId,\n    timestamp,\n    originalCommand: command,\n    suggestedCommand: command.length > 0 ? validCommands.find(cmd => \n      cmd.toLowerCase().startsWith(command.toLowerCase().substring(0, 2))\n    ) || 'HELP' : 'HELP'\n  }];\n}\n\n// Path validation for non-HELP commands\nif (command !== 'HELP' && !path) {\n  return [{\n    error: true,\n    errorType: 'MISSING_PATH',\n    message: `❌ ${command} command requires a path.\\n\\n📝 Example: ${command} ${command === 'SUMMARY' ? '/Documents' : command === 'LIST' ? '/ProjectX' : command === 'DELETE' ? '/temp/file.pdf' : '/source/file.pdf /destination'}`,\n    from,\n    messageId,\n    timestamp,\n    command\n  }];\n}\n\n// Special validations\nif (command === 'MOVE' && !destination) {\n  return [{\n    error: true,\n    errorType: 'MISSING_DESTINATION',\n    message: '❌ MOVE command requires both source and destination.\\n\\n📝 Example: MOVE /draft.pdf /Archive',\n    from,\n    messageId,\n    timestamp,\n    command\n  }];\n}\n\nif (command === 'DELETE' && !confirmKeyword) {\n  return [{\n    error: true,\n    errorType: 'MISSING_CONFIRMATION',\n    message: `⚠️ Are you sure you want to delete: ${path}?\\n\\n📝 To confirm: DELETE ${path} CONFIRM`,\n    from,\n    messageId,\n    timestamp,\n    command,\n    path,\n    requiresConfirmation: true\n  }];\n}\n\n// Clean and normalize paths\nconst cleanPath = path.startsWith('/') ? path : '/' + path;\nconst cleanDestination = destination && !destination.startsWith('/') ? '/' + destination : destination;\n\n// Success response\nreturn [{\n  command,\n  path: cleanPath,\n  destination: cleanDestination,\n  from,\n  messageId,\n  originalMessage: body,\n  timestamp,\n  confirmed: !!confirmKeyword,\n  isValid: true,\n  // Extract folder name for Google Drive operations\n  folderName: cleanPath.split('/').filter(p => p).pop() || 'root',\n  // Generate operation ID for tracking\n  operationId: `${command.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`\n}];"
+      },
+      "id": "e578d3eb-7094-47e0-b346-8f76c60bee9e",
+      "name": "Parse Command1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -4384,
+        -1056
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Dynamic Groq summary preparation with real Google Drive data\nconst originalData = $('Parse Command').first()?.json || $input.all()[0]?.json || {};\nconst driveFiles = $json || [];\n\nconst folderPath = originalData.path;\nconst command = originalData.command;\nconst from = originalData.from;\nconst messageId = originalData.messageId;\nconst operationId = originalData.operationId;\n\n// Process Google Drive files\nlet prompt = '';\nlet fileCount = 0;\n\nif (Array.isArray(driveFiles)) {\n  fileCount = driveFiles.length;\n  \n  if (fileCount === 0) {\n    prompt = `The folder \"${folderPath}\" appears to be empty or doesn't contain any accessible files. Please provide a brief message indicating this to the user.`;\n  } else {\n    // Create intelligent summary prompt based on actual files\n    const fileDetails = driveFiles.map(file => {\n      const name = file.name || 'Unknown file';\n      const mimeType = file.mimeType || 'unknown';\n      const size = file.size ? Math.round(file.size / 1024) : 0;\n      const modifiedTime = file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown';\n      \n      // Determine file type emoji and description\n      let emoji = '📄';\n      let typeDesc = 'document';\n      \n      if (mimeType.includes('pdf')) {\n        emoji = '📋'; typeDesc = 'PDF document';\n      } else if (mimeType.includes('spreadsheet') || name.includes('.xlsx') || name.includes('.xls')) {\n        emoji = '📊'; typeDesc = 'spreadsheet';\n      } else if (mimeType.includes('presentation') || name.includes('.pptx') || name.includes('.ppt')) {\n        emoji = '📈'; typeDesc = 'presentation';\n      } else if (mimeType.includes('document') || name.includes('.docx') || name.includes('.doc')) {\n        emoji = '📝'; typeDesc = 'text document';\n      } else if (mimeType.includes('image')) {\n        emoji = '🖼️'; typeDesc = 'image';\n      } else if (mimeType.includes('video')) {\n        emoji = '🎥'; typeDesc = 'video';\n      }\n      \n      return {\n        name,\n        emoji,\n        typeDesc,\n        size: `${size}KB`,\n        modified: modifiedTime\n      };\n    });\n    \n    prompt = `Please analyze and provide a concise summary of the files in the \"${folderPath}\" folder:\\n\\n`;\n    prompt += `Found ${fileCount} files:\\n`;\n    \n    fileDetails.forEach((file, index) => {\n      prompt += `${index + 1}. ${file.emoji} ${file.name} (${file.typeDesc}, ${file.size}, modified: ${file.modified})\\n`;\n    });\n    \n    prompt += `\\nPlease provide:\\n`;\n    prompt += `1. A brief overview of what types of files are in this folder\\n`;\n    prompt += `2. Any patterns or themes you notice in the file names/types\\n`;\n    prompt += `3. A suggestion for how these files might be organized or used\\n\\n`;\n    prompt += `Keep the response concise and helpful for WhatsApp messaging (under 500 characters if possible).`;\n  }\n} else {\n  // Single file case\n  const file = driveFiles;\n  if (file && file.name) {\n    prompt = `Please provide a brief summary of the file \"${file.name}\" located in \"${folderPath}\". File type: ${file.mimeType || 'unknown'}, Size: ${file.size ? Math.round(file.size / 1024) + 'KB' : 'unknown'}.`;\n  } else {\n    prompt = `Unable to access files in \"${folderPath}\". This might be due to permissions or the folder may not exist.`;\n  }\n}\n\nreturn {\n  command,\n  path: folderPath,\n  from,\n  messageId,\n  operationId,\n  summaryPrompt: prompt,\n  fileCount,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "f0ef8725-b823-452b-95f6-5a1322a3ae7b",
+      "name": "Prepare Groq Summary1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3488,
+        -496
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Enhanced response formatter with dynamic content\nconst command = $json.command || 'UNKNOWN';\nconst originalData = $('Parse Command').first()?.json || $input.all()[0]?.json || {};\nlet response = '';\nlet responseType = command.toLowerCase();\n\nswitch(command) {\n  case 'LIST':\n    const files = $json.files || $json || [];\n    const path = originalData?.path || 'Unknown';\n    \n    if (!Array.isArray(files) || files.length === 0) {\n      response = `📁 *${path}*\\n\\n📄 No files found\\n\\n💡 This folder might be empty or you might not have access to it.`;\n    } else {\n      response = `📁 *${path}* (${files.length} items)\\n\\n`;\n      \n      files.slice(0, 20).forEach((file, index) => { // Limit to 20 files\n        const name = file.name || 'Unknown';\n        const size = file.size ? `(${Math.round(file.size/1024)}KB)` : '';\n        const modified = file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : '';\n        \n        // Determine emoji based on file type\n        let emoji = '📄';\n        if (file.mimeType) {\n          if (file.mimeType.includes('pdf')) emoji = '📋';\n          else if (file.mimeType.includes('spreadsheet')) emoji = '📊';\n          else if (file.mimeType.includes('presentation')) emoji = '📈';\n          else if (file.mimeType.includes('document')) emoji = '📝';\n          else if (file.mimeType.includes('image')) emoji = '🖼️';\n          else if (file.mimeType.includes('video')) emoji = '🎥';\n          else if (file.mimeType.includes('folder')) emoji = '📁';\n        }\n        \n        response += `${emoji} ${index + 1}. ${name} ${size}\\n`;\n      });\n      \n      if (files.length > 20) {\n        response += `\\n... and ${files.length - 20} more files`;\n      }\n    }\n    break;\n    \n  case 'DELETE':\n    const deletedFile = originalData?.path || 'file';\n    response = `🗑️ *File Deleted Successfully*\\n\\n✅ ${deletedFile}\\n\\n⚠️ This action cannot be undone.`;\n    break;\n    \n  case 'MOVE':\n    const source = originalData?.path || 'source';\n    const destination = originalData?.destination || 'destination';\n    response = `📦 *File Moved Successfully*\\n\\n📁 From: ${source}\\n📁 To: ${destination}\\n\\n✅ Operation completed`;\n    break;\n    \n  case 'SUMMARY':\n    const aiResponse = $json.choices?.[0]?.message?.content || 'Summary generation failed';\n    const summaryPath = originalData?.path || 'folder';\n    response = `🤖 *AI Summary for ${summaryPath}*\\n\\n${aiResponse}`;\n    break;\n    \n  case 'HELP':\n    response = $json.response || 'Help information not available';\n    break;\n    \n  default:\n    response = $json.message || '✅ Command processed successfully';\n}\n\n// Add timestamp and operation ID for tracking\nconst timestamp = new Date().toLocaleString();\nconst operationId = originalData?.operationId || 'unknown';\n\nreturn {\n  response,\n  to: originalData?.from || $json.from,\n  messageId: originalData?.messageId || $json.messageId,\n  command,\n  responseType,\n  timestamp,\n  operationId,\n  // Clean phone number format for Twilio\n  cleanPhone: (originalData?.from || $json.from || '').replace('whatsapp:', '')\n};"
+      },
+      "id": "911d0068-bfed-4b92-834d-7d2c08ba8f5b",
+      "name": "Format Response1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        -688
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TWILIO_API_URL }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "From",
+              "value": "={{ $env.TWILIO_FROM }}"
+            },
+            {
+              "name": "To",
+              "value": "={{ $json.cleanPhone ? 'whatsapp:' + $json.cleanPhone : $env.TWILIO_TO }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.response }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ee8833a9-4b25-41d2-90cf-d3b878c33e6e",
+      "name": "Send WhatsApp Response1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -2816,
+        -688
+      ],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "={{ $env.TWILIO_CREDENTIAL_ID }}",
+          "name": "twilioApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "OK",
+        "options": {}
+      },
+      "id": "a2ce9ba1-49c6-46ac-99cb-bd594521f96a",
+      "name": "Webhook Response1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -2368,
+        -688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => ({ json: item.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3936,
+        -928
+      ],
+      "id": "f92433ee-7034-4fa7-affc-70fb0ee20fa2",
+      "name": "Function Node"
+    },
+    {
+      "parameters": {
+        "dataType": "string"
+      },
+      "id": "1afdd592-9d7e-4ec5-8d89-032877dbe77a",
+      "name": "wwr",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -3696,
+        -944
+      ],
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate help message - completely standalone\nconst helpMessage = `🤖 *WhatsApp Google Drive Assistant*\\n\\n📋 *Available Commands:*\\n\\n📁 *LIST /folder*\\n   List files in a folder\\n   Example: LIST /ProjectX\\n\\n🗑️ *DELETE /file.ext CONFIRM*\\n   Delete a file (requires CONFIRM)\\n   Example: DELETE /temp/old.pdf CONFIRM\\n\\n📦 *MOVE /source /destination*\\n   Move or rename files\\n   Example: MOVE /draft.pdf /Archive\\n\\n🤖 *SUMMARY /folder*\\n   AI summary of documents\\n   Example: SUMMARY /Reports\\n\\n❓ *HELP*\\n   Show this message\\n\\n⚡ *Tips:*\\n• Use forward slashes for paths\\n• Commands are case-insensitive\\n• DELETE requires CONFIRM for safety\\n\\n🔒 *Security:* Only your files are accessible`;\n\nreturn {\n  command: 'HELP',\n  response: helpMessage,\n  responseType: 'help',\n  from: $json.from || '',\n  messageId: $json.messageId || `help-${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  operationId: `help-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`\n};"
+      },
+      "id": "f6cf0062-4482-4768-8806-b25a01c6802c",
+      "name": "Generate Help1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3536,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const webhookData = $input.all()[0].json;\nconst fromNumber = webhookData.From || webhookData.from || webhookData.WaId || \"Unknown\";\n\n// Get the original message/body for feedback\nconst originalBody = webhookData.Body || webhookData.body?.Body || webhookData.body2?.Body || \"(empty)\";\n\n// Create improved fallback response\nconst fallbackMessage = \n  `⚠️ Invalid command from: ${fromNumber}\\n\\n` +\n  `You sent: \"${originalBody}\"\\n\\n` +\n  `Please use one of these commands:\\n\\n` +\n  `📋 LIST - View your Google Drive files\\n` +\n  `🗑️ DELETE [filename] - Delete a file\\n` +\n  `📁 MOVE [filename] to [folder] - Move file to folder\\n` +\n  `📊 SUMMARY [folder] - Get AI summary of folder\\n` +\n  `❓ HELP - Show this help message\\n\\n` +\n  `Example: 'LIST' or 'DELETE myfile.pdf'`;\n\nreturn [{\n  json: {\n    to: fromNumber,\n    response: fallbackMessage\n  }\n}];"
+      },
+      "id": "e634c5b3-10f1-459e-b91f-14aaff144963",
+      "name": "Fallback Response1",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -3312,
+        992
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check for Errors": {
+      "main": [
+        [
+          {
+            "node": "Format Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Function Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive List": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Delete": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Move": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Summary List": {
+      "main": [
+        [
+          {
+            "node": "Prepare Groq Summary1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Help": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Response": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback Response": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Audit Log": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Filter Valid Messages1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Valid Messages1": {
+      "main": [
+        [
+          {
+            "node": "Parse Command1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command1": {
+      "main": [
+        [
+          {
+            "node": "Check for Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Groq Summary1": {
+      "main": [
+        [
+          {
+            "node": "Groq AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response1": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp Response1": {
+      "main": [
+        [
+          {
+            "node": "Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Function Node": {
+      "main": [
+        [
+          {
+            "node": "wwr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wwr": {
+      "main": [
+        [
+          {
+            "node": "Google Drive List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Drive Delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Drive Move",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Google Drive Summary List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Help1": {
+      "main": [
+        []
+      ]
+    },
+    "Fallback Response1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d5df4ce7-28f3-48e7-892e-856e41607599",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fdfce81c9abbd1cdf15356db9e51df30e338ba790ad8d39ee42daa8fe55dd559"
+  },
+  "id": "LuyYkJajKiTyxCEd",
+  "tags": []
+}

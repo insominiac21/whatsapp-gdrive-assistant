@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+  n8n:
+    image: n8nio/n8n
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    env_file:
+      - .env
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+    # n8n will be accessible locally; use Railway/ngrok/Cloudflare Tunnel for public access
+
+volumes:
+  n8n_data:
